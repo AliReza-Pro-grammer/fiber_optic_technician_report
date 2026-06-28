@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -14,8 +14,10 @@ import FormControl from '@mui/material/FormControl';
 import CloseIcon from '@mui/icons-material/Close';
 import IconButton from '@mui/material/IconButton';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import LockIcon from '@mui/icons-material/Lock';
 import { Job } from '../../../domain/entities';
 import { MOCK_USERS } from '../../../data/mock_data';
+import { useAppContext } from '../../../presentation/app_context';
 
 const PROVIDERS = ['STC', 'Mobily', 'Etisalat', 'Zain', 'Ooredoo'];
 
@@ -23,17 +25,31 @@ interface AddJobModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: Omit<Job, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  editingJob?: Job | null;
 }
 
-export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
+export function AddJobModal({ open, onClose, onSubmit, editingJob }: AddJobModalProps) {
+  const { jobs } = useAppContext();
+
+  // Generate next virtual number
+  const nextVirtualNumber = useMemo(() => {
+    const year = new Date().getFullYear();
+    const existingNumbers = jobs
+      .filter(j => j.virtualNumber?.startsWith(`V-${year}`))
+      .map(j => parseInt(j.virtualNumber?.split('-')[2] || '0', 10));
+    const maxNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    return `V-${year}-${String(maxNum + 1).padStart(3, '0')}`;
+  }, [jobs]);
+
   const [form, setForm] = useState({
-    clientName: '',
-    address: '',
-    phone: '',
-    provider: 'STC',
-    assignedCableTechId: 'u2',
-    assignedFusionTechId: 'u3',
-    notes: '',
+    clientName: editingJob?.clientName || '',
+    virtualNumber: editingJob?.virtualNumber || '',
+    address: editingJob?.address || '',
+    phone: editingJob?.phone || '',
+    provider: editingJob?.provider || 'STC',
+    assignedCableTechId: editingJob?.assignedCableTechId || 'u2',
+    assignedFusionTechId: editingJob?.assignedFusionTechId || 'u3',
+    notes: editingJob?.notes || '',
   });
 
   const cableTechs = MOCK_USERS.filter(u => u.role === 'cable_tech');
@@ -44,9 +60,25 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
   };
 
   const handleSubmit = () => {
-    if (!form.clientName || !form.address) return;
-    onSubmit({ ...form, status: 'new' });
-    setForm({ clientName: '', address: '', phone: '', provider: 'STC', assignedCableTechId: 'u2', assignedFusionTechId: 'u3', notes: '' });
+    if (!form.clientName || !form.address || !form.virtualNumber) return;
+    onSubmit({
+      ...form,
+      virtualNumber: form.virtualNumber || nextVirtualNumber,
+      status: editingJob?.status || 'new',
+    });
+    // Reset form for new job
+    if (!editingJob) {
+      setForm({
+        clientName: '',
+        virtualNumber: '',
+        address: '',
+        phone: '',
+        provider: 'STC',
+        assignedCableTechId: 'u2',
+        assignedFusionTechId: 'u3',
+        notes: '',
+      });
+    }
   };
 
   return (
@@ -68,9 +100,11 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             </Box>
             <Box>
               <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#1A1A2E', lineHeight: 1.2 }}>
-                New Job
+                {editingJob ? 'Edit Job' : 'New Job'}
               </Typography>
-              <Typography sx={{ fontSize: '0.72rem', color: '#90A4AE' }}>Add a new client job</Typography>
+              <Typography sx={{ fontSize: '0.72rem', color: '#90A4AE' }}>
+                Supervisor only — manage client information
+              </Typography>
             </Box>
           </Box>
           <IconButton onClick={onClose} size="small" sx={{ color: '#B0BEC5' }}>
@@ -80,7 +114,31 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, py: 1 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px', pt: 1 }}>
+        {/* Supervisor-only notice */}
+        <Box sx={{
+          bgcolor: '#E8EDF9', borderRadius: '10px', p: '10px 12px',
+          display: 'flex', alignItems: 'center', gap: 1, mb: 2, mt: 1,
+        }}>
+          <LockIcon sx={{ fontSize: 16, color: '#0A2463' }} />
+          <Typography sx={{ fontSize: '0.72rem', color: '#0A2463', fontWeight: 500 }}>
+            Client Name, Virtual Number, and Address can only be edited by Supervisor
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Virtual Number */}
+          <TextField
+            label="Virtual Number"
+            value={form.virtualNumber || nextVirtualNumber}
+            onChange={handleChange('virtualNumber')}
+            fullWidth
+            required
+            placeholder={nextVirtualNumber}
+            InputProps={{ sx: { borderRadius: '10px' } }}
+            helperText="Unique identifier for this job (e.g., V-2026-001)"
+          />
+
+          {/* Client Name */}
           <TextField
             label="Client Name"
             value={form.clientName}
@@ -89,6 +147,8 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             required
             InputProps={{ sx: { borderRadius: '10px' } }}
           />
+
+          {/* Address */}
           <TextField
             label="Address"
             value={form.address}
@@ -99,6 +159,8 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             rows={2}
             InputProps={{ sx: { borderRadius: '10px' } }}
           />
+
+          {/* Phone Number */}
           <TextField
             label="Phone Number"
             value={form.phone}
@@ -108,6 +170,7 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             InputProps={{ sx: { borderRadius: '10px' } }}
           />
 
+          {/* Provider */}
           <Box sx={{ display: 'flex', gap: '12px' }}>
             <FormControl fullWidth size="small">
               <InputLabel>Provider</InputLabel>
@@ -122,6 +185,7 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             </FormControl>
           </Box>
 
+          {/* Assigned Technicians */}
           <Box sx={{ display: 'flex', gap: '12px' }}>
             <FormControl fullWidth size="small">
               <InputLabel>Cable Tech</InputLabel>
@@ -147,6 +211,7 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             </FormControl>
           </Box>
 
+          {/* Notes */}
           <TextField
             label="Notes"
             value={form.notes}
@@ -182,7 +247,7 @@ export function AddJobModal({ open, onClose, onSubmit }: AddJobModalProps) {
             boxShadow: '0 4px 16px rgba(10,36,99,0.3)',
           }}
         >
-          Create Job
+          {editingJob ? 'Save Changes' : 'Create Job'}
         </Button>
       </DialogActions>
     </Dialog>

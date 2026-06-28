@@ -8,6 +8,7 @@ import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import IconButton from '@mui/material/IconButton';
 import Badge from '@mui/material/Badge';
+import Button from '@mui/material/Button';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import AddIcon from '@mui/icons-material/Add';
 import WorkIcon from '@mui/icons-material/Work';
@@ -17,6 +18,12 @@ import WifiTetheringIcon from '@mui/icons-material/WifiTethering';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
 import CloseIcon from '@mui/icons-material/Close';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import PeopleIcon from '@mui/icons-material/People';
+import DownloadIcon from '@mui/icons-material/Download';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import CableIcon from '@mui/icons-material/Cable';
+import FlareIcon from '@mui/icons-material/Flare';
 import { useSupervisorViewModel } from '../../../presentation/viewmodels/use_supervisor_vm';
 import { NotificationService } from '../../../data/notification_service';
 import { toast } from 'sonner';
@@ -25,6 +32,7 @@ import { JobStatusChip } from '../shared/StatusChip';
 import { AddJobModal } from './AddJobModal';
 import { JobStatus } from '../../../domain/entities';
 import { STATUS_CONFIG } from '../../theme';
+import { generateMaterialReportHTML } from './material_report_generator';
 
 const FILTER_TABS: { label: string; value: JobStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -33,6 +41,27 @@ const FILTER_TABS: { label: string; value: JobStatus | 'all' }[] = [
   { label: 'Fusion', value: 'fusion' },
   { label: 'Connected', value: 'connected' },
 ];
+
+// Material summary card component
+function MaterialCard({ label, value, unit, icon }: { label: string; value: number; unit?: string; icon: React.ReactNode }) {
+  return (
+    <Box sx={{
+      bgcolor: 'white', borderRadius: '12px', p: '14px',
+      boxShadow: '0 2px 8px rgba(10,36,99,0.06)',
+      border: '1px solid #E8ECF4',
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: '6px' }}>
+        <Box sx={{ color: '#78909C' }}>{icon}</Box>
+        <Typography sx={{ fontSize: '0.68rem', color: '#90A4AE', fontWeight: 600, textTransform: 'uppercase' }}>
+          {label}
+        </Typography>
+      </Box>
+      <Typography sx={{ fontWeight: 800, fontSize: '1.4rem', color: '#0A2463' }}>
+        {value.toLocaleString()}{unit ? ` ${unit}` : ''}
+      </Typography>
+    </Box>
+  );
+}
 
 export function SupervisorDashboard() {
   const vm = useSupervisorViewModel();
@@ -53,7 +82,7 @@ export function SupervisorDashboard() {
     }
   }, []);
 
-  // Simulate a push notification arriving after 10 s (remote tech submitting from another device)
+  // Simulate a push notification arriving after 10 s
   useEffect(() => {
     const timer = setTimeout(() => {
       if (NotificationService.getPermission() === 'granted') {
@@ -82,6 +111,184 @@ export function SupervisorDashboard() {
     { label: 'Done', count: vm.jobStats.connected, cfg: STATUS_CONFIG.connected },
   ];
 
+  const handleExportPDF = useCallback(() => {
+    const win = window.open('', '_blank', 'width=960,height=700,scrollbars=yes');
+    if (!win) {
+      toast.error('Pop-up blocked — please allow pop-ups for this site.');
+      return;
+    }
+    const html = generateMaterialReportHTML({
+      generatedBy: 'Supervisor',
+      usedItemsSummary: vm.usedItemsSummary,
+      technicianStats: vm.technicianStats,
+      jobStats: vm.jobStats,
+      jobs: vm.jobs,
+      cableReports: vm.cableReports,
+      fusionReports: vm.fusionReports,
+    });
+    win.document.write(html);
+    win.document.close();
+    toast.success('Report opened — use Print / Ctrl+P to save as PDF');
+  }, [vm]);
+
+  // Analytics Tab (Tab 2)
+  if (activeTab === 2) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#EEF1F8' }}>
+        <AppBar position="static" sx={{ bgcolor: '#0A2463' }}>
+          <Toolbar sx={{ minHeight: '52px !important', px: 2 }}>
+            <AnalyticsIcon sx={{ color: '#3E92CC', mr: 1, fontSize: 20 }} />
+            <Typography variant="h6" sx={{ flex: 1, fontWeight: 700, fontSize: '1rem' }}>
+              Analytics & Reports
+            </Typography>
+            <Button
+              startIcon={<DownloadIcon />}
+              onClick={handleExportPDF}
+              sx={{
+                color: 'white', borderRadius: '10px', fontSize: '0.72rem',
+                bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+              }}
+            >
+              Export PDF
+            </Button>
+            <IconButton onClick={vm.logout} sx={{ color: 'rgba(255,255,255,0.7)', p: '8px', ml: 1 }}>
+              <LogoutIcon fontSize="small" />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
+
+        <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+          {/* Used Materials Summary */}
+          <SectionHeader title="Materials Used Summary" color="#0A2463" />
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', mb: 3 }}>
+            {/* Cable Materials */}
+            <MaterialCard
+              label="Double-braced Cable"
+              value={vm.usedItemsSummary.totalDoubleBracedCable}
+              unit="m"
+              icon={<CableIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Three-braced Cable"
+              value={vm.usedItemsSummary.totalThreeBracedCable}
+              unit="m"
+              icon={<CableIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Cable Clamps"
+              value={vm.usedItemsSummary.totalCableClamps}
+              icon={<InventoryIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Total Cable Length"
+              value={vm.usedItemsSummary.totalDoubleBracedCable + vm.usedItemsSummary.totalThreeBracedCable}
+              unit="m"
+              icon={<CableIcon sx={{ fontSize: 16 }} />}
+            />
+          </Box>
+
+          {/* Fusion Materials */}
+          <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#BF360C', mb: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Fusion Materials
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', mb: 3 }}>
+            <MaterialCard
+              label="ATB"
+              value={vm.usedItemsSummary.totalATB}
+              icon={<FlareIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Pigtails"
+              value={vm.usedItemsSummary.totalPigtails}
+              icon={<FlareIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Adaptors"
+              value={vm.usedItemsSummary.totalAdaptors}
+              icon={<FlareIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Double-Adaptors"
+              value={vm.usedItemsSummary.totalDoubleAdaptors}
+              icon={<FlareIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="TB*8"
+              value={vm.usedItemsSummary.totalTB8}
+              icon={<InventoryIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="TB*4"
+              value={vm.usedItemsSummary.totalTB4}
+              icon={<InventoryIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Splitters"
+              value={vm.usedItemsSummary.totalSplitters}
+              icon={<InventoryIcon sx={{ fontSize: 16 }} />}
+            />
+            <MaterialCard
+              label="Fusion Cable Clamps"
+              value={vm.usedItemsSummary.totalFusionCableClamps}
+              icon={<InventoryIcon sx={{ fontSize: 16 }} />}
+            />
+          </Box>
+
+          {/* Technician Performance */}
+          <SectionHeader title="Technician Performance" color="#0A2463" />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {vm.technicianStats.map(stat => (
+              <Box key={stat.technicianId} sx={{
+                bgcolor: 'white', borderRadius: '12px', p: '14px',
+                boxShadow: '0 2px 8px rgba(10,36,99,0.06)',
+                border: `1px solid ${stat.role === 'cable_tech' ? '#FFF3E0' : '#FBE9E7'}`,
+              }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '8px' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PeopleIcon sx={{ fontSize: 18, color: stat.role === 'cable_tech' ? '#E64A19' : '#BF360C' }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A1A2E' }}>
+                      {stat.technicianName}
+                    </Typography>
+                  </Box>
+                  <Box sx={{
+                    bgcolor: stat.role === 'cable_tech' ? '#FFF3E0' : '#FBE9E7',
+                    color: stat.role === 'cable_tech' ? '#E65100' : '#BF360C',
+                    px: '8px', py: '2px', borderRadius: '99px',
+                    fontSize: '0.65rem', fontWeight: 700,
+                  }}>
+                    {stat.role === 'cable_tech' ? 'CABLE' : 'FUSION'}
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                  <Box sx={{ textAlign: 'center', p: '8px', bgcolor: '#F5F7FA', borderRadius: '8px' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#1B5E20' }}>{stat.jobsCompleted}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: '#78909C' }}>Completed</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center', p: '8px', bgcolor: '#F5F7FA', borderRadius: '8px' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#E65100' }}>{stat.jobsPending}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: '#78909C' }}>Pending</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center', p: '8px', bgcolor: '#F5F7FA', borderRadius: '8px' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0A2463' }}>{stat.totalJobs}</Typography>
+                    <Typography sx={{ fontSize: '0.65rem', color: '#78909C' }}>Total</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        <BottomNavigation value={activeTab} onChange={(_, v) => setActiveTab(v)}
+          sx={{ borderTop: '1px solid #E8ECF4', flexShrink: 0 }}>
+          <BottomNavigationAction label="Jobs" icon={<WorkIcon />} />
+          <BottomNavigationAction label="Reports" icon={<Badge badgeContent={vm.pendingReports.length} color="error"><DescriptionIcon /></Badge>} />
+          <BottomNavigationAction label="Analytics" icon={<AnalyticsIcon />} />
+        </BottomNavigation>
+      </Box>
+    );
+  }
+
+  // Reports Tab (Tab 1)
   if (activeTab === 1) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#EEF1F8' }}>
@@ -90,7 +297,17 @@ export function SupervisorDashboard() {
             <Typography variant="h6" sx={{ flex: 1, fontWeight: 700, fontSize: '1rem' }}>
               Report Center
             </Typography>
-            <IconButton onClick={vm.logout} sx={{ color: 'rgba(255,255,255,0.7)', p: '8px' }}>
+            <Button
+              startIcon={<DownloadIcon />}
+              onClick={handleExportPDF}
+              sx={{
+                color: 'white', borderRadius: '10px', fontSize: '0.72rem',
+                bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+              }}
+            >
+              Export PDF
+            </Button>
+            <IconButton onClick={vm.logout} sx={{ color: 'rgba(255,255,255,0.7)', p: '8px', ml: 1 }}>
               <LogoutIcon fontSize="small" />
             </IconButton>
           </Toolbar>
@@ -121,9 +338,14 @@ export function SupervisorDashboard() {
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: '6px' }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A1A2E' }}>
-                        {r.clientName}
-                      </Typography>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700, fontSize: '0.88rem', color: '#1A1A2E' }}>
+                          {r.clientName}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.68rem', color: '#90A4AE' }}>
+                          {job?.virtualNumber}
+                        </Typography>
+                      </Box>
                       <Box sx={{
                         bgcolor: '#FFF3E0', color: '#E65100', px: '8px', py: '2px',
                         borderRadius: '99px', fontSize: '0.68rem', fontWeight: 700,
@@ -166,7 +388,7 @@ export function SupervisorDashboard() {
                         {r.clientName}
                       </Typography>
                       <Typography sx={{ fontSize: '0.68rem', color: '#90A4AE' }}>
-                        {r.reportType === 'cable' ? 'Cable Report' : 'Fusion Report'}
+                        {r.reportType === 'cable' ? 'Cable Report' : 'Fusion Report'} · {job?.virtualNumber}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
@@ -188,11 +410,13 @@ export function SupervisorDashboard() {
           sx={{ borderTop: '1px solid #E8ECF4', flexShrink: 0 }}>
           <BottomNavigationAction label="Jobs" icon={<WorkIcon />} />
           <BottomNavigationAction label="Reports" icon={<Badge badgeContent={vm.pendingReports.length} color="error"><DescriptionIcon /></Badge>} />
+          <BottomNavigationAction label="Analytics" icon={<AnalyticsIcon />} />
         </BottomNavigation>
       </Box>
     );
   }
 
+  // Jobs Tab (Tab 0)
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#EEF1F8', position: 'relative' }}>
       <AppBar position="static" sx={{ bgcolor: '#0A2463' }}>
@@ -354,6 +578,7 @@ export function SupervisorDashboard() {
           label="Reports"
           icon={<Badge badgeContent={vm.pendingReports.length} color="error"><DescriptionIcon /></Badge>}
         />
+        <BottomNavigationAction label="Analytics" icon={<AnalyticsIcon />} />
       </BottomNavigation>
 
       <AddJobModal

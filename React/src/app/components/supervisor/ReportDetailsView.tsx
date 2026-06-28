@@ -14,8 +14,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import PersonIcon from '@mui/icons-material/Person';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import { useSupervisorViewModel } from '../../../presentation/viewmodels/use_supervisor_vm';
 import { useAppContext } from '../../../presentation/app_context';
 import { JobStatusChip, ReportStatusChip, WorkflowStepper } from '../shared/StatusChip';
@@ -23,14 +23,19 @@ import { JobStatusChip, ReportStatusChip, WorkflowStepper } from '../shared/Stat
 interface FieldRowProps {
   label: string;
   value: string;
+  highlight?: boolean;
 }
-function FieldRow({ label, value }: FieldRowProps) {
+function FieldRow({ label, value, highlight = false }: FieldRowProps) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       <Typography sx={{ fontSize: '0.68rem', color: '#90A4AE', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: '0.88rem', color: '#1A1A2E', fontWeight: 500 }}>
+      <Typography sx={{
+        fontSize: '0.88rem',
+        color: highlight ? '#0A2463' : '#1A1A2E',
+        fontWeight: highlight ? 700 : 500,
+      }}>
         {value || '—'}
       </Typography>
     </Box>
@@ -84,7 +89,7 @@ export function ReportDetailsView() {
               {job.clientName}
             </Typography>
             <Typography sx={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>
-              #{job.id} · {reportType === 'cable' ? 'Cable' : 'Fusion'} Report
+              {job.virtualNumber} · {reportType === 'cable' ? 'Cable' : 'Fusion'} Report
             </Typography>
           </Box>
           {report && <ReportStatusChip status={report.status} />}
@@ -109,12 +114,15 @@ export function ReportDetailsView() {
             <JobStatusChip status={job.status} size="sm" />
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <FieldRow label="Virtual Number" value={job.virtualNumber} highlight />
+              <FieldRow label="Provider" value={job.provider} />
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
               <LocationOnIcon sx={{ fontSize: 14, color: '#78909C', mt: '2px', flexShrink: 0 }} />
               <Typography sx={{ fontSize: '0.82rem', color: '#546E7A' }}>{job.address}</Typography>
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <FieldRow label="Provider" value={job.provider} />
               <FieldRow label="Phone" value={job.phone} />
             </Box>
             {job.notes && <FieldRow label="Notes" value={job.notes} />}
@@ -126,7 +134,7 @@ export function ReportDetailsView() {
           <Box sx={{ bgcolor: 'white', borderRadius: '14px', p: '14px', mb: 2, boxShadow: '0 2px 10px rgba(10,36,99,0.07)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '12px' }}>
               <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: '#1A1A2E' }}>
-                {reportType === 'cable' ? 'Cable' : 'Fusion'} Report
+                {reportType === 'cable' ? 'Cable' : 'Fusion'} Report — Material Usage
               </Typography>
             </Box>
 
@@ -145,31 +153,54 @@ export function ReportDetailsView() {
               </Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', mb: '12px' }}>
-              {reportType === 'cable' && cableReport && (
-                <>
-                  <FieldRow label="Cable Length" value={`${cableReport.cableLength}m`} />
-                  <FieldRow label="Cable Type" value={cableReport.cableType} />
-                </>
-              )}
-              {reportType === 'fusion' && fusionReport && (
-                <>
-                  <FieldRow label="Pigtails" value={fusionReport.pigtails} />
-                  <FieldRow label="Adaptors" value={fusionReport.adaptors} />
-                  <FieldRow label="ATB" value={fusionReport.atb} />
-                  <FieldRow label="TB" value={fusionReport.tb} />
-                </>
-              )}
-            </Box>
+            {reportType === 'cable' && cableReport && (
+              <Box sx={{ mb: '12px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: '10px' }}>
+                  <InventoryIcon sx={{ fontSize: 16, color: '#E64A19' }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: '#E64A19', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Cable Materials Used
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <FieldRow label="Double-braced Cable" value={`${cableReport.doubleBracedCableLength || '—'} m`} highlight />
+                  <FieldRow label="Three-braced Cable" value={`${cableReport.threeBracedCableLength || '—'} m`} highlight />
+                  <FieldRow label="Cable Clamps" value={cableReport.cableClampCount || '—'} highlight />
+                  <FieldRow label="Total Cable Length" value={`${Number(cableReport.doubleBracedCableLength || 0) + Number(cableReport.threeBracedCableLength || 0)} m`} />
+                </Box>
+              </Box>
+            )}
 
-            <Box sx={{ bgcolor: '#F5F7FA', borderRadius: '10px', p: '10px' }}>
-              <Typography sx={{ fontSize: '0.7rem', color: '#90A4AE', fontWeight: 600, mb: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Details
-              </Typography>
-              <Typography sx={{ fontSize: '0.82rem', color: '#546E7A', lineHeight: 1.5 }}>
-                {report.details}
-              </Typography>
-            </Box>
+            {reportType === 'fusion' && fusionReport && (
+              <Box sx={{ mb: '12px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: '10px' }}>
+                  <InventoryIcon sx={{ fontSize: 16, color: '#BF360C' }} />
+                  <Typography sx={{ fontSize: '0.75rem', color: '#BF360C', fontWeight: 600, textTransform: 'uppercase' }}>
+                    Fusion Materials Used
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <FieldRow label="ATB (Access Terminal Box)" value={fusionReport.atbCount || '—'} highlight />
+                  <FieldRow label="Pigtails" value={fusionReport.pigtailCount || '—'} highlight />
+                  <FieldRow label="Adaptors" value={fusionReport.adaptorCount || '—'} highlight />
+                  <FieldRow label="Double-Adaptors" value={fusionReport.doubleAdaptorCount || '—'} highlight />
+                  <FieldRow label="TB*8 (8-port Box)" value={fusionReport.tb8Count || '—'} highlight />
+                  <FieldRow label="TB*4 (4-port Box)" value={fusionReport.tb4Count || '—'} highlight />
+                  <FieldRow label="Splitters" value={fusionReport.splitterCount || '—'} highlight />
+                  <FieldRow label="Cable Clamps" value={fusionReport.cableClampCount || '—'} highlight />
+                </Box>
+              </Box>
+            )}
+
+            {report.details && (
+              <Box sx={{ bgcolor: '#F5F7FA', borderRadius: '10px', p: '10px' }}>
+                <Typography sx={{ fontSize: '0.7rem', color: '#90A4AE', fontWeight: 600, mb: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Additional Notes
+                </Typography>
+                <Typography sx={{ fontSize: '0.82rem', color: '#546E7A', lineHeight: 1.5 }}>
+                  {report.details}
+                </Typography>
+              </Box>
+            )}
 
             {report.reviewNote && (
               <Box sx={{ mt: '10px', bgcolor: '#FFEBEE', borderRadius: '10px', p: '10px', border: '1px solid #FFCDD2' }}>

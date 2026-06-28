@@ -6,6 +6,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BusinessIcon from '@mui/icons-material/Business';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import TagIcon from '@mui/icons-material/Tag';
 import { Job } from '../../../domain/entities';
 import { JobStatusChip } from './StatusChip';
 import { STATUS_CONFIG } from '../../theme';
@@ -51,9 +52,14 @@ export function JobCard({ job, onPress, actions, compact = false }: JobCardProps
             }}>
               {job.clientName}
             </Typography>
-            <Typography sx={{ fontSize: '0.7rem', color: '#90A4AE', fontWeight: 500, mt: '2px' }}>
-              #{job.id}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', mt: '2px' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                <TagIcon sx={{ fontSize: 10, color: '#90A4AE' }} />
+                <Typography sx={{ fontSize: '0.68rem', color: '#90A4AE', fontWeight: 600 }}>
+                  {job.virtualNumber || job.id}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
           <JobStatusChip status={job.status} size={compact ? 'sm' : 'md'} />
         </Box>
